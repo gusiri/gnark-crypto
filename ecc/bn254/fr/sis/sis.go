@@ -21,6 +21,7 @@ import (
 	"hash"
 	"math/big"
 	"math/bits"
+	"sync"
 
 	"github.com/bits-and-blooms/bitset"
 	"github.com/consensys/gnark-crypto/ecc/bn254/fr"
@@ -312,12 +313,25 @@ func (r *RSis) CopyWithFreshBuffer() RSis {
 // Cleanup the buffers of the RSis instance
 func (r *RSis) cleanupBuffers() {
 	r.bufMValues.ClearAll()
-	for i := 0; i < len(r.bufM); i++ {
-		r.bufM[i].SetZero()
-	}
-	for i := 0; i < len(r.bufRes); i++ {
-		r.bufRes[i].SetZero()
-	}
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		for i := range r.bufM {
+			r.bufM[i].SetZero()
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		for i := range r.bufRes {
+			r.bufRes[i].SetZero()
+		}
+	}()
+
+	wg.Wait()
 }
 
 // Split an slice of bytes representing an array of serialized field element in
